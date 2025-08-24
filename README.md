@@ -1,24 +1,5 @@
 # demo-webui
 
-## Project setup
-```
-yarn install
-```
+这是一个示例用的 webui 项目（vue3），用于展示一个 LLM 应用的前端原型, 方便可视化实验结果.
 
-### Compiles and hot-reloads for development
-```
-yarn serve
-```
-
-### Compiles and minifies for production
-```
-yarn build
-```
-
-### Lints and fixes files
-```
-yarn lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+开发者建议参考 `docs/` 目录下的文档，里面陈述了 `demo` 的待办与开发指南.
