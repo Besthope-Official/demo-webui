@@ -2,22 +2,31 @@
   <section class="chat-page">
     <!-- chat header: shown as title, only in chat state -->
   <header v-if="inChat" class="chat-header"><h2 class="chat-title">会话</h2></header>
+    <img 
+        src="./image.png"
+        alt="图片设置"
+        :style="{width:'200px',height:'auto',textAlign:'center'}">
+        <div class="chat-body">
+          <!-- Home state: show before user asks first question -->
+          <div v-if="!inChat" class="home">
+            <h2>我可以给到您专业的心理答疑</h2>
+            <p class="welcome">欢迎，您可以直接输入问题或选择下面的推荐问题开始。</p>
+            <div class="main-content">
+                <div class="input-container">
+                    <div class="input-box">
+                        <textarea class="message-input" placeholder="输入消息..." rows="1" @keyup.enter="send"></textarea>
+                        <button class="send-button" @click="send">
+                          发送
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-    <div class="chat-body">
-      <!-- Home state: show before user asks first question -->
-      <div v-if="!inChat" class="home">
-        <h2>我可以给到您专业的心理答疑</h2>
-        <p class="welcome">欢迎，您可以直接输入问题或选择下面的推荐问题开始。</p>
-
-        <div class="home-input">
-          <input v-model="input" placeholder="有什么问题尽管问我" />
-          <button @click="send">发送</button>
-        </div>
 
         <div class="recommendations">
           <h4>推荐问题</h4>
           <div class="chips">
-            <button v-for="r in recs" :key="r" @click="applyRec(r)">{{ r }}</button>
+            <button v-for="r in recs" :key="r" @click=applyRec(r)>{{ r }}</button>
           </div>
         </div>
       </div>
@@ -32,10 +41,7 @@
     </div>
 
     <!-- input area always shown in footer for convenience when in chat -->
-    <div class="chat-input" v-if="inChat">
-      <input v-model="input" placeholder="有什么问题尽管问我" @keyup.enter="send" />
-      <button @click="send">发送</button>
-    </div>
+    
   </section>
 </template>
 
@@ -60,9 +66,11 @@ export default {
 
     function applyRec(text){
       input.value = text
+      send()
     }
 
     function send(){
+      if (!input.value) input.value=document.querySelector('.message-input').value
       const text = (input.value || '').trim()
       if (!text) return
       // push user message
@@ -86,7 +94,7 @@ export default {
       console.log('send', text)
     }
 
-    return { input, inChat, messages, recs, applyRec, send, collected }
+    return { input, inChat, messages, recs, applyRec, send, collected}
   }
 }
 </script>
@@ -114,4 +122,75 @@ export default {
 .chat-input{display:flex;padding:12px;border-top:1px solid #eee}
 .chat-input input{flex:1;padding:8px 10px}
 .chat-input button{margin-left:8px;padding:8px 14px}
+.input-container {
+    padding: 20px;
+    border-top: 1px solid #2a3b49;
+}
+
+.input-box {
+    display: flex;
+    background: rgba(214, 214, 214, 0.5);
+    border: 1px solid #4b5563;
+    border-radius: 12px;
+    padding: 5px 15px;
+    height: 200px;
+}
+
+.message-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: rgb(0, 0, 0);
+    padding: 15px 0;
+    font-size: 16px;
+    outline: none;
+    resize: none;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.message-input::placeholder {
+    color: #9ca3af;
+}
+
+.send-button {
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: end;
+    justify-content: end;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.send-button:hover {
+    background: #959aa4;
+    transform: rotate(30deg);
+}
+
+.input-hints {
+    display: flex;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.hint-button {
+    background: rgba(55, 65, 81, 0.5);
+    color: #4c73b7;
+    border: 1px solid #4b5563;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.hint-button:hover {
+    background: rgba(176, 180, 186, 0.8);
+    color: #e0e0e0;
+}
 </style>
