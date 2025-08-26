@@ -55,10 +55,12 @@ export default {
   data(){
     return {
       userId:"",
+      chatId:"",
       history:"",
+      summary:"",
       input:"",
       inChat:ref(false),
-      messgae:ref([]),
+      messages:ref([]),
       recs:[]
     }
   },
@@ -68,6 +70,7 @@ export default {
       try { collected = JSON.parse(sessionStorage.getItem('collectedUserData') || '{}') } catch(e){ console.warn('parse collectedUserData failed', e) }
       console.log('Collected user data at chat start:', collected)
       this.userId=collected.userId
+      return this.userId
     },
     get_recs() {
       return [
@@ -78,9 +81,22 @@ export default {
     },
     get_input(){
       if(!this.input) this.input=document.querySelector('.message-input').value
+      return this.input
+    },
+    get_chatId(){
+      let collected = {}
+      try { collected = JSON.parse(sessionStorage.getItem('collectedUserData') || '{}') } catch(e){ console.warn('parse collectedUserData failed', e) }
+      console.log('Collected user data at chat start:', collected)
+      this.chatId=collected.chatId
+      return this.chatId
+    },
+    get_summary(text){
+      this.summary=chatApi.getChatSummary(this.get_userId(), this.get_chatId(),text)
+      return this.summary
     },
     get_history(){
-      this.history=chatApi.getChatHistory(this.userId)
+      this.history=chatApi.getChatHistory(this.get_userId(), this.get_chatId())
+      return this.history
     },
     applyRec(text){
       //这里有点问题
@@ -91,10 +107,9 @@ export default {
       const res_1=Array.from(res.value)
       console.log('send2', res_1)
       return res_1
-    }
-    ,
+    },
+
     send(){
-      
       const inChat = ref(false)
       const text = (this.input || '').trim()
       if (!text) return
