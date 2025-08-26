@@ -26,14 +26,14 @@
         <div class="recommendations">
           <h4>推荐问题</h4>
           <div class="chips">
-            <button v-for="r in recs" :key="r" @click=applyRec(r)>{{ r }}</button>
+            <button v-for="r in get_recs()" :key="r" @click=applyRec(r)>{{ r }}</button>
           </div>
         </div>
       </div>
 
       <!-- Chat state: conversation -->
       <div v-else class="messages">
-        <div v-for="(m, idx) in messages" :key="idx" :class="['msg', m.role]">
+        <div v-for="(idx,m) in applyRec()" :key="idx">
           <div class="bubble">{{ m.text }}</div>
           <div v-if="m.role==='ai' && m.progress !== undefined" class="progress"><div class="bar" :style="{width: m.progress + '%'}"></div></div>
         </div>
@@ -46,57 +46,149 @@
 </template>
 
 <script>
-import { ref } from 'vue'
-
+import chatApi from '@/router/chat'
+import { ref } from "vue"
+// import { apply } from 'core-js/fn/reflect'
+const messages = ref([])
 export default {
   name: 'ChatPage',
-  setup(){
-    const input = ref('')
-    const inChat = ref(false)
-    const messages = ref([])
-    const recs = ref([
-      '如何缓解焦虑？',
-      '最近总是睡不好，怎么办？',
-      '推荐几本心理学入门书籍'
-    ])
-
-    let collected = {}
-    try { collected = JSON.parse(sessionStorage.getItem('collectedUserData') || '{}') } catch(e){ console.warn('parse collectedUserData failed', e) }
-    console.log('Collected user data at chat start:', collected)
-
-    function applyRec(text){
-      input.value = text
-      send()
+  data(){
+    return {
+      userId:"",
+      history:"",
+      input:"",
+      inChat:ref(false),
+      messgae:ref([]),
+      recs:[]
     }
-
-    function send(){
-      if (!input.value) input.value=document.querySelector('.message-input').value
-      const text = (input.value || '').trim()
+  },
+  methods:{
+    get_userId(){
+      let collected = {}
+      try { collected = JSON.parse(sessionStorage.getItem('collectedUserData') || '{}') } catch(e){ console.warn('parse collectedUserData failed', e) }
+      console.log('Collected user data at chat start:', collected)
+      this.userId=collected.userId
+    },
+    get_recs() {
+      return [
+        '如何缓解焦虑？',
+        '最近总是睡不好，怎么办？',
+        '推荐几本心理学入门书籍'
+      ]
+    },
+    get_input(){
+      if(!this.input) this.input=document.querySelector('.message-input').value
+    },
+    get_history(){
+      this.history=chatApi.getChatHistory(this.userId)
+    },
+    applyRec(text){
+      //这里有点问题
+      this.input=text
+      const res=ref([])
+      res.value=this.send()
+      console.log('send1', res._value)
+      const res_1=Array.from(res.value)
+      console.log('send2', res_1)
+      return res_1
+    }
+    ,
+    send(){
+      
+      const inChat = ref(false)
+      const text = (this.input || '').trim()
       if (!text) return
       // push user message
       messages.value.push({ role: 'user', text })
-      input.value = ''
+      this.input = ''
       // transition to chat state if not already
       if (!inChat.value) inChat.value = true
 
       // push a placeholder AI response with simulated progress
       messages.value.push({ role: 'ai', text: '正在思考...', progress: 30 })
-
+      
       // simulate progress finishing after short timeout
       setTimeout(()=>{
         const ai = messages.value.find(m => m.role==='ai' && m.text==='正在思考...')
         if (ai) {
           ai.progress = 100
           ai.text = '这是一个示例回复，实际回复将来自后端或模型。'
+          // ai.text = chatApi.sendText(text,userId)
         }
       }, 800)
 
-      console.log('send', text)
+      console.log('send', messages)
+      return messages;
     }
-
-    return { input, inChat, messages, recs, applyRec, send, collected}
+    }
   }
-}
+
+  // setup(){
+  //   const userId=ref('')
+  //   const ChatHistory=ref([])
+  //   const input = ref('')
+  //   const inChat = ref(false)
+  //   const messages = ref([])
+  //   const recs = ref([
+  //     '如何缓解焦虑？',
+  //     '最近总是睡不好，怎么办？',
+  //     '推荐几本心理学入门书籍'
+  //   ])
+
+  //   let collected = {}
+  //   try { collected = JSON.parse(sessionStorage.getItem('collectedUserData') || '{}') } catch(e){ console.warn('parse collectedUserData failed', e) }
+  //   console.log('Collected user data at chat start:', collected)
+  //   userId.value=collected.userId
+
+  //   function applyChatHistory(userId){
+  //     history=fetchChatHistory(userId)
+  //     ChatHistory=history.responseData
+  //   }
+  //   function applyRec(text){
+  //     input.value = text
+  //     send()
+  //   }
+
+  //   function send(){
+  //     if (!input.value) input.value=document.querySelector('.message-input').value
+  //     const text = (input.value || '').trim()
+  //     if (!text) return
+  //     // push user message
+  //     messages.value.push({ role: 'user', text })
+  //     input.value = ''
+  //     // transition to chat state if not already
+  //     if (!inChat.value) inChat.value = true
+
+  //     // push a placeholder AI response with simulated progress
+  //     messages.value.push({ role: 'ai', text: '正在思考...', progress: 30 })
+      
+  //     // simulate progress finishing after short timeout
+  //     setTimeout(()=>{
+  //       const ai = messages.value.find(m => m.role==='ai' && m.text==='正在思考...')
+  //       if (ai) {
+  //         ai.progress = 100
+  //         ai.text = '这是一个示例回复，实际回复将来自后端或模型。'
+  //         // ai.text = sendText(text,userId)
+  //       }
+  //     }, 800)
+
+  //     console.log('send', text)
+  //   }
+
+  //   return { input, inChat, messages, recs, applyRec, send, collected}
+  // },
+//   methods:{
+//     async sendText(text,userId){
+//       this.handleApiCall(()=>chatApi.sendText(text,userId));
+      
+//     },
+//     async fetchChatHistory(userId){
+//       this.handleApiCall(()=>chatApi.getChatHistory(userId));
+//       ChatHistory=this.responseData
+//     },
+    
+//   }
+// };
 </script>
 
 <style scoped>

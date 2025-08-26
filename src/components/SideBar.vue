@@ -6,23 +6,68 @@
     <h3 class="history-title">会话历史</h3>
     <ul class="history-list">
       <li class="history-item active">
-        
         <span>会话1</span>
       </li>
-      <li class="history-item">
-        <span>会话2</span>
-      </li>
-      <li class="history-item">
-        <span>会话3</span>
+      <li class="history-item" v-for="chat in ChatList" :key="chat.id">
+        <span>{{ chat.title }}</span>
       </li>
     </ul>
   </div>
 </template>
 
 <script>
+import chatApi from '@/router/chat'
 export default {
-  name: 'SideBar'
+  name: 'SideBar',
+  data(){
+    return{
+      loading:false,
+      responseData:[
+        {id:1,title:1},
+        {id:2,title:2}
+      ],
+      error:null
+    };
+  },
+  computed:{
+    ChatList(){
+      console.log(this.fetchChatList(this.get_userId))
+      return this.fetchChatList(this.get_userId);
+    }
+  },
+  methods:{
+    get_userId(){
+      let collected = {}
+      try { collected = JSON.parse(sessionStorage.getItem('collectedUserData') || '{}') } catch(e){ console.warn('parse collectedUserData failed', e) }
+      console.log('Collected user data at chat start:', collected)
+      return collected.userId
+    },
+    fetchChatList(userId){
+      this.handleApiCall(()=>chatApi.getChatList(userId))
+      return [
+        {id:1,title:1},
+        {id:2,title:1}
+      ]
+      // return this.responseData
+    },
+    async handleApiCall(apiFunction) {
+      this.loading = true;
+      this.error = null;
+      this.responseData = null;
+
+      try {
+        const response = await apiFunction();
+        this.responseData = response.data;
+      } catch (error) {
+        this.error = error.message || '请求失败';
+        console.error('API调用错误:', error);
+      } finally {
+        this.loading = false;
+      }
+    }
+  }
 }
+
 </script>
 
 <style scoped>
