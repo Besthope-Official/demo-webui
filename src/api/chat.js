@@ -16,20 +16,20 @@ export async function* streamHandler(response) {
   }
 }
 
-export async function streamChat(message) {
+export async function streamChat(messages, rag_enable = false) {
   const chatId = Date.now().toString();
   const messageId = Date.now().toString();
 
+  const query = messages.slice(0, -1).map(m => ({
+    role: m.role,
+    content: m.text
+  }));
+
   const payload = {
-    rag_enable: false,
+    rag_enable,
     chat_id: chatId,
     message_id: messageId,
-    query: [
-      {
-        role: 'user',
-        content: message
-      }
-    ]
+    query: query
   };
 
   console.log('Sending payload:', payload);

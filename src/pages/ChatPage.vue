@@ -10,6 +10,13 @@
         <p class="welcome">欢迎，您可以直接输入问题或选择下面的推荐问题开始。</p>
 
         <div class="home-input">
+          <div class="rag-toggle">
+            <label class="switch">
+              <input type="checkbox" v-model="ragEnabled" />
+              <span class="slider"></span>
+            </label>
+            <span class="rag-label">RAG</span>
+          </div>
           <input v-model="input" placeholder="有什么问题尽管问我" />
           <button @click="send">发送</button>
         </div>
@@ -49,6 +56,7 @@ export default {
     const input = ref('')
     const inChat = ref(false)
     const messages = ref([])
+  const ragEnabled = ref(false)
     const recs = ref([
       '如何缓解焦虑？',
       '最近总是睡不好，怎么办？',
@@ -73,11 +81,11 @@ export default {
       if (!inChat.value) inChat.value = true
 
 
-      const aiMessage = reactive({ role: 'ai', text: '' })
+      const aiMessage = reactive({ role: 'assistant', text: '' })
       messages.value.push(aiMessage)
 
       try {
-        const response = await streamChat(text)
+  const response = await streamChat(messages.value, ragEnabled.value)
         let fullContent = ''
 
         for await (const chunk of streamHandler(response)) {
@@ -101,7 +109,7 @@ export default {
       }
     }
 
-    return { input, inChat, messages, recs, applyRec, send, collected }
+  return { input, inChat, messages, recs, applyRec, send, collected, ragEnabled }
   }
 }
 </script>
@@ -116,13 +124,22 @@ export default {
 .home-input{display:flex;justify-content:center;margin:16px 0}
 .home-input input{width:60%;padding:8px 10px}
 .home-input button{margin-left:8px;padding:8px 14px}
+.home-input{position:relative}
+.rag-toggle{position:absolute;left:calc(50% - 30%);bottom:-28px;display:flex;align-items:center;gap:6px}
+.switch{position:relative;display:inline-block;width:36px;height:20px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.2s;border-radius:20px}
+.slider:before{position:absolute;content:"";height:16px;width:16px;left:2px;top:2px;background:#fff;transition:.2s;border-radius:50%}
+.switch input:checked + .slider{background:#42b983}
+.switch input:checked + .slider:before{transform:translateX(16px)}
+.rag-label{font-size:12px;color:#666}
 .recommendations{margin-top:12px}
 .recommendations .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .recommendations button{padding:6px 10px;border:1px solid #ddd;background:#fff}
 .messages{display:flex;flex-direction:column;gap:12px}
 .msg{max-width:70%}
 .msg .bubble{padding:10px 12px;border-radius:8px;background:#f5f5f5}
-.msg.ai .bubble{background:#eef7ff}
+.msg.assistant .bubble{background:#eef7ff}
 .msg.user{align-self:flex-end}
 .progress{height:4px;background:#eee;border-radius:2px;margin-top:6px}
 .progress .bar{height:100%;background:#42b983;border-radius:2px}
