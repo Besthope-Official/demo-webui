@@ -52,6 +52,7 @@
 
 <script>
 import { ref, computed } from 'vue'
+import topicsData from '@/assets/interestTopics.json'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -61,38 +62,8 @@ export default {
     const identities = ['学生', '从业者', '待业者', '家庭主妇/夫', '退休']
     const selectedIdentity = ref('从业者')
 
-    const careTopicsByRole = {
-      学生: [
-        '考研', '就业', '学习方法', '社团活动', '实习', '留学', '升学',
-        '竞赛', '心理', '人际', '消费', '健康', '恋爱', '职业规划', '兴趣',
-      ],
-      从业者: [
-        '职业发展', '技能提升', '行业动态', '薪资', '跳槽', '晋升', '人脉',
-        '副业', '创业', '工作效率', '职场沟通', '压力', '理财', '健康', '家庭平衡',
-      ],
-      待业者: [
-        '求职', '面试技巧', '简历优化', '职业规划', '行业选择', '技能学习',
-        '心态', '面试', '招聘会', '人脉', '内推', '作品集', '笔试', '薪资谈判', '求职渠道',
-      ],
-      '家庭主妇/夫': [
-        '育儿', '家庭理财', '生活技巧', '自我提升', '亲子教育', '健康',
-        '社交', '时间管理', '兴趣', '婚姻', '副业', '家务', '情感', '保险', '家庭关系',
-      ],
-      退休: [
-        '健康', '兴趣', '养生', '养老金', '旅行', '社交', '再就业', '理财',
-        '房产', '子女', '医疗', '健身', '法律', '保险', '学习',
-      ],
-    }
-
-    const universalInterestTopics = [
-      '阅读', '写作', '编程', '设计', '摄影', '旅行', '美食', '音乐',
-      '电影', '运动', '游戏', '动漫', '绘画', '手工艺', '志愿服务', '健身',
-      '瑜伽', '徒步', '跑步', '烹饪', '烘焙', '品酒', '品茶', '钓鱼', '园艺',
-      '乐器', '书法', '桌游', '学习新技能', '线上课程', '播客', '博客', 'vlog',
-      '短视频', '志愿者', '社交活动', '探索美食', '理财', '插花', '手工',
-      '编织', '普拉提', '亲子活动', '育儿知识', '家庭收纳', '下棋', '养生',
-      '广场舞', '太极', '唱歌', '戏曲', '社区活动',
-    ]
+  const careTopicsByRole = topicsData.careTopicsByRole || {}
+  const universalInterestTopics = topicsData.universalInterestTopics || []
 
     const careTopics = computed(() => careTopicsByRole[selectedIdentity.value] || [])
     const interestTopics = ref(universalInterestTopics)
