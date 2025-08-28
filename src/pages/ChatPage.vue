@@ -40,7 +40,8 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
+import { streamChat, streamHandler } from '@/api/chat.js'
 
 export default {
   name: 'ChatPage',
@@ -62,7 +63,7 @@ export default {
       input.value = text
     }
 
-    function send(){
+    async function send(){
       const text = (input.value || '').trim()
       if (!text) return
       // push user message
@@ -71,19 +72,33 @@ export default {
       // transition to chat state if not already
       if (!inChat.value) inChat.value = true
 
-      // push a placeholder AI response with simulated progress
-      messages.value.push({ role: 'ai', text: '正在思考...', progress: 30 })
 
-      // simulate progress finishing after short timeout
-      setTimeout(()=>{
-        const ai = messages.value.find(m => m.role==='ai' && m.text==='正在思考...')
-        if (ai) {
-          ai.progress = 100
-          ai.text = '这是一个示例回复，实际回复将来自后端或模型。'
+      const aiMessage = reactive({ role: 'ai', text: '' })
+      messages.value.push(aiMessage)
+
+      try {
+        const response = await streamChat(text)
+        let fullContent = ''
+
+        for await (const chunk of streamHandler(response)) {
+          const lines = chunk.split('\n').filter(line => line.trim())
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line)
+              if (parsed.event === 'Answer' && parsed.data.content) {
+                console.log('Answer content:', parsed.data.content)
+                fullContent += parsed.data.content
+                aiMessage.text = fullContent
+              }
+            } catch (e) {
+              console.warn('Failed to parse line:', line, e)
+            }
+          }
         }
-      }, 800)
-
-      console.log('send', text)
+      } catch (error) {
+        console.error('Stream error:', error)
+        aiMessage.text = '抱歉，发生了错误。请重试。'
+      }
     }
 
     return { input, inChat, messages, recs, applyRec, send, collected }
