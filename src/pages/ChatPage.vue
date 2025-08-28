@@ -32,7 +32,7 @@
       <!-- Chat state: conversation -->
       <div v-else class="messages">
         <div v-for="(m, idx) in messages" :key="idx" :class="['msg', m.role]">
-          <div class="bubble">{{ m.text }}</div>
+          <div class="bubble" v-html="m.html || m.text"></div>
           <div v-if="m.role==='ai' && m.progress !== undefined" class="progress"><div class="bar" :style="{width: m.progress + '%'}"></div></div>
         </div>
       </div>
@@ -48,6 +48,8 @@
 
 <script>
 import { ref, reactive } from 'vue'
+import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import { streamChat, streamHandler } from '@/api/chat.js'
 
 export default {
@@ -81,7 +83,7 @@ export default {
       if (!inChat.value) inChat.value = true
 
 
-      const aiMessage = reactive({ role: 'assistant', text: '' })
+  const aiMessage = reactive({ role: 'assistant', text: '', html: '' })
       messages.value.push(aiMessage)
 
       try {
@@ -93,10 +95,18 @@ export default {
           for (const line of lines) {
             try {
               const parsed = JSON.parse(line)
-              if (parsed.event === 'Answer' && parsed.data.content) {
+                if (parsed.event === 'Answer' && parsed.data.content) {
                 console.log('Answer content:', parsed.data.content)
                 fullContent += parsed.data.content
                 aiMessage.text = fullContent
+                // render markdown to sanitized HTML
+                try {
+                  const md = new MarkdownIt({ html: true, linkify: true })
+                  const raw = md.render(fullContent)
+                  aiMessage.html = DOMPurify.sanitize(raw)
+                } catch (e) {
+                  aiMessage.html = ''
+                }
               }
             } catch (e) {
               console.warn('Failed to parse line:', line, e)
