@@ -10,6 +10,13 @@
         <p class="welcome">欢迎，您可以直接输入问题或选择下面的推荐问题开始。</p>
 
         <div class="home-input">
+          <div class="rag-toggle">
+            <label class="switch">
+              <input type="checkbox" v-model="ragEnabled" />
+              <span class="slider"></span>
+            </label>
+            <span class="rag-label">RAG</span>
+          </div>
           <input v-model="input" placeholder="有什么问题尽管问我" />
           <button @click="send">发送</button>
         </div>
@@ -25,7 +32,10 @@
       <!-- Chat state: conversation -->
       <div v-else class="messages">
         <div v-for="(m, idx) in messages" :key="idx" :class="['msg', m.role]">
-          <div class="bubble">{{ m.text }}</div>
+          <div class="bubble">
+            <div v-if="m.hasThink" class="think-container" v-html="m.thinkHtml || m.think"></div>
+            <div class="content" v-html="m.html || m.text"></div>
+          </div>
           <div v-if="m.role==='ai' && m.progress !== undefined" class="progress"><div class="bar" :style="{width: m.progress + '%'}"></div></div>
         </div>
       </div>
@@ -40,7 +50,10 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
+import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
+import { streamChat, streamHandler } from '@/api/chat.js'
 
 export default {
   name: 'ChatPage',
@@ -48,6 +61,7 @@ export default {
     const input = ref('')
     const inChat = ref(false)
     const messages = ref([])
+  const ragEnabled = ref(false)
     const recs = ref([
       '如何缓解焦虑？',
       '最近总是睡不好，怎么办？',
@@ -62,7 +76,7 @@ export default {
       input.value = text
     }
 
-    function send(){
+    async function send(){
       const text = (input.value || '').trim()
       if (!text) return
       // push user message
@@ -71,22 +85,64 @@ export default {
       // transition to chat state if not already
       if (!inChat.value) inChat.value = true
 
-      // push a placeholder AI response with simulated progress
-      messages.value.push({ role: 'ai', text: '正在思考...', progress: 30 })
 
-      // simulate progress finishing after short timeout
-      setTimeout(()=>{
-        const ai = messages.value.find(m => m.role==='ai' && m.text==='正在思考...')
-        if (ai) {
-          ai.progress = 100
-          ai.text = '这是一个示例回复，实际回复将来自后端或模型。'
+  const aiMessage = reactive({ role: 'assistant', text: '', html: '', hasThink: false, think: '', thinkHtml: '' })
+      messages.value.push(aiMessage)
+
+      try {
+  const response = await streamChat(messages.value, ragEnabled.value)
+        let fullContent = ''
+
+        for await (const chunk of streamHandler(response)) {
+          const lines = chunk.split('\n').filter(line => line.trim())
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line)
+                if (parsed.event === 'Answer' && parsed.data.content) {
+                console.log('Answer content:', parsed.data.content)
+                fullContent += parsed.data.content
+
+                // If there's a </think> tag anywhere in the accumulated content,
+                // split into think-part (before tag) and normal-part (after tag).
+                const THINK_TAG = '</think>'
+                const idx = fullContent.indexOf(THINK_TAG)
+                try {
+                  const md = new MarkdownIt({ html: true, linkify: true })
+                  if (idx !== -1) {
+                    const thinkPart = fullContent.slice(0, idx)
+                    const rest = fullContent.slice(idx + THINK_TAG.length)
+                    aiMessage.hasThink = true
+                    aiMessage.think = thinkPart
+                    aiMessage.thinkHtml = DOMPurify.sanitize(md.render(thinkPart))
+                    aiMessage.html = DOMPurify.sanitize(md.render(rest))
+                    // ensure the plain-text field only contains the non-think part
+                    aiMessage.text = rest
+                  } else {
+                    // no think tag yet: treat everything as think (gray container)
+                    aiMessage.hasThink = true
+                    aiMessage.think = fullContent
+                    aiMessage.thinkHtml = DOMPurify.sanitize(md.render(fullContent))
+                    aiMessage.html = ''
+                    // don't duplicate think text in the main content
+                    aiMessage.text = ''
+                  }
+                } catch (e) {
+                  aiMessage.html = ''
+                  aiMessage.thinkHtml = ''
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse line:', line, e)
+            }
+          }
         }
-      }, 800)
-
-      console.log('send', text)
+      } catch (error) {
+        console.error('Stream error:', error)
+        aiMessage.text = '抱歉，发生了错误。请重试。'
+      }
     }
 
-    return { input, inChat, messages, recs, applyRec, send, collected }
+  return { input, inChat, messages, recs, applyRec, send, collected, ragEnabled }
   }
 }
 </script>
@@ -101,13 +157,24 @@ export default {
 .home-input{display:flex;justify-content:center;margin:16px 0}
 .home-input input{width:60%;padding:8px 10px}
 .home-input button{margin-left:8px;padding:8px 14px}
+.home-input{position:relative}
+.rag-toggle{position:absolute;left:calc(50% - 30%);bottom:-28px;display:flex;align-items:center;gap:6px}
+.switch{position:relative;display:inline-block;width:36px;height:20px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.2s;border-radius:20px}
+.slider:before{position:absolute;content:"";height:16px;width:16px;left:2px;top:2px;background:#fff;transition:.2s;border-radius:50%}
+.switch input:checked + .slider{background:#42b983}
+.switch input:checked + .slider:before{transform:translateX(16px)}
+.rag-label{font-size:12px;color:#666}
 .recommendations{margin-top:12px}
 .recommendations .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .recommendations button{padding:6px 10px;border:1px solid #ddd;background:#fff}
 .messages{display:flex;flex-direction:column;gap:12px}
 .msg{max-width:70%}
-.msg .bubble{padding:10px 12px;border-radius:8px;background:#f5f5f5}
-.msg.ai .bubble{background:#eef7ff}
+.msg .bubble{padding:10px 12px;border-radius:8px;background:#f5f5f5;display:flex;flex-direction:column;gap:8px}
+.msg.assistant .bubble{background:#eef7ff}
+.think-container{background:#f0f0f0;border-radius:6px;padding:8px;margin-bottom:4px;color:#333}
+.think-container p{margin:0}
 .msg.user{align-self:flex-end}
 .progress{height:4px;background:#eee;border-radius:2px;margin-top:6px}
 .progress .bar{height:100%;background:#42b983;border-radius:2px}
