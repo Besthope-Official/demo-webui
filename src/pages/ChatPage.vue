@@ -32,7 +32,10 @@
       <!-- Chat state: conversation -->
       <div v-else class="messages">
         <div v-for="(m, idx) in messages" :key="idx" :class="['msg', m.role]">
-          <div class="bubble" v-html="m.html || m.text"></div>
+          <div class="bubble">
+            <div v-if="m.hasThink" class="think-container" v-html="m.thinkHtml || m.think"></div>
+            <div class="content" v-html="m.html || m.text"></div>
+          </div>
           <div v-if="m.role==='ai' && m.progress !== undefined" class="progress"><div class="bar" :style="{width: m.progress + '%'}"></div></div>
         </div>
       </div>
@@ -83,7 +86,7 @@ export default {
       if (!inChat.value) inChat.value = true
 
 
-  const aiMessage = reactive({ role: 'assistant', text: '', html: '' })
+  const aiMessage = reactive({ role: 'assistant', text: '', html: '', hasThink: false, think: '', thinkHtml: '' })
       messages.value.push(aiMessage)
 
       try {
@@ -98,14 +101,34 @@ export default {
                 if (parsed.event === 'Answer' && parsed.data.content) {
                 console.log('Answer content:', parsed.data.content)
                 fullContent += parsed.data.content
-                aiMessage.text = fullContent
-                // render markdown to sanitized HTML
+
+                // If there's a </think> tag anywhere in the accumulated content,
+                // split into think-part (before tag) and normal-part (after tag).
+                const THINK_TAG = '</think>'
+                const idx = fullContent.indexOf(THINK_TAG)
                 try {
                   const md = new MarkdownIt({ html: true, linkify: true })
-                  const raw = md.render(fullContent)
-                  aiMessage.html = DOMPurify.sanitize(raw)
+                  if (idx !== -1) {
+                    const thinkPart = fullContent.slice(0, idx)
+                    const rest = fullContent.slice(idx + THINK_TAG.length)
+                    aiMessage.hasThink = true
+                    aiMessage.think = thinkPart
+                    aiMessage.thinkHtml = DOMPurify.sanitize(md.render(thinkPart))
+                    aiMessage.html = DOMPurify.sanitize(md.render(rest))
+                    // ensure the plain-text field only contains the non-think part
+                    aiMessage.text = rest
+                  } else {
+                    // no think tag yet: treat everything as think (gray container)
+                    aiMessage.hasThink = true
+                    aiMessage.think = fullContent
+                    aiMessage.thinkHtml = DOMPurify.sanitize(md.render(fullContent))
+                    aiMessage.html = ''
+                    // don't duplicate think text in the main content
+                    aiMessage.text = ''
+                  }
                 } catch (e) {
                   aiMessage.html = ''
+                  aiMessage.thinkHtml = ''
                 }
               }
             } catch (e) {
@@ -148,8 +171,10 @@ export default {
 .recommendations button{padding:6px 10px;border:1px solid #ddd;background:#fff}
 .messages{display:flex;flex-direction:column;gap:12px}
 .msg{max-width:70%}
-.msg .bubble{padding:10px 12px;border-radius:8px;background:#f5f5f5}
+.msg .bubble{padding:10px 12px;border-radius:8px;background:#f5f5f5;display:flex;flex-direction:column;gap:8px}
 .msg.assistant .bubble{background:#eef7ff}
+.think-container{background:#f0f0f0;border-radius:6px;padding:8px;margin-bottom:4px;color:#333}
+.think-container p{margin:0}
 .msg.user{align-self:flex-end}
 .progress{height:4px;background:#eee;border-radius:2px;margin-top:6px}
 .progress .bar{height:100%;background:#42b983;border-radius:2px}
